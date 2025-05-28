@@ -7,13 +7,16 @@ import { useAuth } from "../context/AuthContext";
 import { /*useEffect, */ useState } from "react";
 import { createNote, fetchNotes } from "@/api/notes";
 import { fetchSummaries, generateSummary } from "@/api/summaries";
-import { fetchPracticeTests } from "@/api/practiceTests";
+import { fetchPracticeTests, generatePracticeTest } from "@/api/practiceTests";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PrettySummary } from "@/lib/prettifySummary";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectItem, SelectTrigger, SelectContent, SelectValue } from "@/components/ui/select";
 import { deleteItem } from "@/api/delete";
+import { Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { PrettifyTests } from "@/lib/prettifyTests";
 
 type Course = {
   _id: string;
@@ -35,13 +38,13 @@ type Note = {
   user: string;
 };
 
-/*type PracticeTest = {
+type PracticeTest = {
   _id: string;
   type: "practice_test";
   course: string;
   user: string;
   questions: object[];
-};*/
+};
 
 type Summary = {
   _id: string;
@@ -86,10 +89,23 @@ export default function CourseDetail() {
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [generateSummaryError, setGenerateSummaryError] = useState<string | null>(null);
 
+  const [confirmDeleteTestOpen, setConfirmDeleteTestOpen] = useState(false);
+  const [deletingTestId, setDeletingTestId] = useState<string | null>(null);
+  const [deletingTest, setDeletingTest] = useState(false);
+  const [deletingTestError, setDeletingTestError] = useState<string | null>(null);
+  const [practiceTestDialogOpen, setPracticeTestDialogOpen] = useState(false);
+  const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
+  const [generatingPracticeTest, setGeneratingPracticeTest] = useState(false);
+  const [generatePracticeTestError, setGeneratePracticeTestError] = useState<string | null>(null);
+
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deletingError, setDeletingError] = useState<string | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  const [selectedNumber, setSelectedNumber] = useState("5")
+
+
 
   const { 
     data: notes = [], 
@@ -150,10 +166,15 @@ export default function CourseDetail() {
   const chapterNumbers = Object.keys(notesByChapter).sort((a, b) => +a - +b);
 
   const selectedSummary = (summaries as Summary[]).find((s) => s._id === selectedId || null);
+  const selectedPracticeTest = (practiceTests as PracticeTest[]).find(pt => pt._id === selectedTestId) || null;
   
 
   if (!course) return <div className="p-8 text-red-600">Course not found.</div>;
 
+  console.log("Practice test object:", selectedPracticeTest);
+  if (selectedPracticeTest) {
+    console.log("Practice test questions:", selectedPracticeTest.questions);
+  }
 
 
   return (
@@ -329,7 +350,23 @@ export default function CourseDetail() {
                 <DialogTitle className="ml-1">Generate Summary</DialogTitle>
               </DialogHeader>
               <div className="flex flex-col gap-4">
-                <label className="font-medium ml-1">Select Chapter</label>
+                <div className="flex items-center gap-1">
+                  <label className="font-medium ml-1">Select Chapter</label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" tabIndex={-1} className="p-0.5 text-gray-500 hover:text-blue-500 focus:outline-none">
+                          <Info className="w-4 h-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <span>
+                          Select what chapter to generate a summary from. A summary will be generated from all the notes within the selected chapter.
+                        </span>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <Select
                   value={selectedChapter ?? ""}
                   onValueChange={setSelectedChapter}
@@ -425,34 +462,175 @@ export default function CourseDetail() {
         </TabsContent>
 
         <TabsContent value="tests">
-          {testsLoading ? (
-            <div className="flex justify-center items-center min-h-[60vh]">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-              <div className="ml-4 text-gray-500">Loading practice tests...</div>
+          <div className="flex flex-col h-full">
+            {/* Top bar with button */}
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold ml-2">Practice Tests</h3>
+              <Button variant="outline" onClick={() => setPracticeTestDialogOpen(true)}>
+                Generate Practice Test
+              </Button>
             </div>
-          ) : testsError ? (
-            <div className="text-red-600">
-              Failed to load practice tests.
-              <Button onClick={() => refetchTests()} variant="outline" size="sm">Retry</Button>
+            {/* Main content: left list, right details */}
+            <div className="flex gap-6 min-h-[150px]">
+              {/* Practice Test list */}
+              <aside className="w-[15%] self-start bg-gray-50 rounded-lg p-2 flex flex-col gap-1">
+                {testsLoading ? (
+                  <div className="text-gray-400 p-4">Loading practice tests...</div>
+                ) : testsError ? (
+                  <div className="text-red-500 p-4">
+                    Failed to load practice tests.
+                    <Button size="sm" variant="ghost" onClick={() => refetchTests()}>Retry</Button>
+                  </div>
+                ) : practiceTests.length === 0 ? (
+                  <div className="text-gray-500 p-4">No practice tests yet</div>
+                ) : (
+                  <ul>
+                    {(practiceTests as PracticeTest[])
+                      .slice()
+                      .map(test => (
+                        <li
+                          key={test._id}
+                          className={`cursor-pointer rounded px-1 py-2 mb-1 transition text-sm
+                            ${selectedTestId === test._id
+                              ? "bg-blue-300 text-white font-semibold"
+                              : "hover:bg-blue-100"}`}
+                          onClick={() => setSelectedTestId(test._id)}
+                        >
+                          {test.course !== undefined
+                            ? `Chapter ${test.course}`
+                            : `Test ${test._id.slice(-4)}`} {/* fallback */}
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </aside>
+              {/* Practice Test details */}
+              <section className="w-[85%] bg-white rounded-lg p-6 shadow justify-between">
+                {testsLoading ? (
+                  <div className="text-gray-400">Loading...</div>
+                ) : selectedPracticeTest ? (
+                  <>
+                    <div className="mb-2 text-lg font-bold">
+                      {selectedPracticeTest.course !== undefined
+                        ? `${selectedPracticeTest.course}`
+                        : `Practice Test`}
+                    </div>
+                    {/* Display your practice test details here */}
+                    <div className="bg-gray-50 p-2 rounded text-sm w-full">
+                      <PrettifyTests questions={selectedPracticeTest.questions} />
+                    </div>
+                    <button
+                      type="button"
+                      className="ml-2 text-red-400 hover:text-red-700 mt-10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeletingTestId(selectedPracticeTest._id);
+                        setConfirmDeleteTestOpen(true);
+                      }}
+                      aria-label="Delete practice test"
+                    >
+                      Delete Practice Test
+                    </button>
+                  </>
+                ) : (
+                  <div className="text-gray-400">Select a test to view details.</div>
+                )}
+              </section>
             </div>
-          ) : (
-          <div>
-          <div className="flex justify-between items-center mt-4 mb-2">
-            <h3 className="text-xl font-semibold">Practice Tests</h3>
-            <Button variant="outline">Add Practice Test</Button>
           </div>
-          <ul className="space-y-2">
-            {practiceTests.length > 0 ? practiceTests.map(test => (
-              <li key={test._id} className="p-2 bg-gray-100 rounded">
-                <span className="font-semibold">{test.course}</span>
-              </li>
-            )) : (
-              <li className="text-gray-500">No practice tests yet</li>
-            )}
-          </ul>
-          </div>
-          )}
+          {/* Generate Practice Test Dialog (optional) */}
+          <Dialog open={practiceTestDialogOpen} onOpenChange={setPracticeTestDialogOpen}>
+            <DialogContent className="min-w-[400px]">
+              <DialogHeader>
+                <DialogTitle className="ml-1">Generate Practice Test</DialogTitle>
+              </DialogHeader>
+              {/* ...your content for generating practice test... */}
+              <DialogFooter className="mt-4">
+                <div className="text-gray-600 mb-2 ml-1">
+                  Number of questions to generate:
+                </div>
+              <Select value={selectedNumber} onValueChange={setSelectedNumber}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a number..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {[...Array(10)].map((_, i) => (
+                    <SelectItem key={i + 1} value={(i + 1).toString()}>
+                      {i + 1}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+                <Button 
+                  onClick={async () => {
+                    setGeneratePracticeTestError(null);
+                    setGeneratingPracticeTest(true);
+                    try {
+                      await generatePracticeTest(token as string, course.course, selectedNumber)
+                      setPracticeTestDialogOpen(false);
+                      await refetchTests()
+                    } catch (e) {
+                      setGeneratePracticeTestError("Failed to generate practice test.");
+                    }
+                    setGeneratingPracticeTest(false);
+                   }
+                  }
+                  disabled={generatingPracticeTest}
+                  >{generatingPracticeTest ? "Generating..." : "Generate"}
+                  </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setPracticeTestDialogOpen(false)}
+                  disabled={generatingPracticeTest}
+                  >Cancel</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete Confirmation Dialog */}
+          <Dialog open={confirmDeleteTestOpen} onOpenChange={setConfirmDeleteTestOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete Practice Test</DialogTitle>
+              </DialogHeader>
+              <div>
+                Are you sure you want to delete this practice test? This action cannot be undone.
+              </div>
+              {deletingTestError && <div className="text-red-500 text-sm">{deletingTestError}</div>}
+              <DialogFooter>
+                <Button
+                  variant="destructive"
+                  disabled={deletingTest}
+                  onClick={async () => {
+                    setDeletingTest(true);
+                    setDeletingTestError(null);
+                    try {
+                      if (deletingTestId) {
+                        await deleteItem(token as string, deletingTestId);
+                        await refetchTests();
+                        if (selectedTestId === deletingTestId) setSelectedTestId(null);
+                        setConfirmDeleteTestOpen(false);
+                      }
+                    } catch {
+                      setDeletingTestError("Failed to delete practice test.");
+                    }
+                    setDeletingTest(false);
+                  }}
+                >
+                  {deletingTest ? "Deleting..." : "Delete"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmDeleteTestOpen(false)}
+                  disabled={deletingTest}
+                >
+                  Cancel
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
+
       </Tabs>
     </div>
   );
