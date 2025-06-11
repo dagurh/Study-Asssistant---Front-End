@@ -497,7 +497,7 @@ export default function CourseDetail() {
                           onClick={() => setSelectedTestId(test._id)}
                         >
                           {test.course !== undefined
-                            ? `Chapter ${test.course}`
+                            ? `${test.course}`
                             : `Test ${test._id.slice(-4)}`} {/* fallback */}
                         </li>
                       ))}
@@ -517,7 +517,7 @@ export default function CourseDetail() {
                     </div>
                     {/* Display your practice test details here */}
                     <div className="bg-gray-50 p-2 rounded text-sm w-full">
-                      <PrettifyTests questions={selectedPracticeTest.questions} />
+                      <PrettifyTests key={selectedTestId} questions={selectedPracticeTest.questions} />
                     </div>
                     <button
                       type="button"

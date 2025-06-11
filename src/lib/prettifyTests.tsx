@@ -23,7 +23,7 @@ export function PrettifyTests({ questions }: PrettifyTestsProps) {
 
   const handleReveal = (idx: number) => {
     setRevealed(prev =>
-      prev.map((val, i) => (i === idx ? true : val))
+      prev.map((val, i) => (i === idx ? !val : val))
     );
   };
 
@@ -39,7 +39,7 @@ export function PrettifyTests({ questions }: PrettifyTestsProps) {
             <span className="text-blue-700">Q{idx + 1}:</span> {q.question}
           </div>
           {revealed[idx] ? (
-            <div className="mt-2 text-green-700 font-semibold w-full break-words">{q.answer}</div>
+            <div className="mt-2 text-green-700 font-semibold w-full break-words whitespace-pre-line">{q.answer}</div>
           ) : (
             <Button
               size="sm"
@@ -47,7 +47,7 @@ export function PrettifyTests({ questions }: PrettifyTestsProps) {
               variant="outline"
               onClick={() => handleReveal(idx)}
             >
-              Show Answer
+              {revealed[idx] ? "Hide Answer" : "Show Answer"}
             </Button>
           )}
         </div>

@@ -13,6 +13,7 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showSlowLoginMessage, setShowSlowLoginMessage] = useState(false);
   const API_URL = import.meta.env.VITE_API_URL;
   const navigate = useNavigate();
 
@@ -25,7 +26,13 @@ export default function Home() {
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setLoading(true);
+    setShowSlowLoginMessage(false);
     setError(null);
+
+    const slowLoginTimer = setTimeout(() => {
+      setShowSlowLoginMessage(true);
+    }, 4000);
+
     const formData = new URLSearchParams();
     formData.append("username", email);
     formData.append("password", password);
@@ -38,6 +45,7 @@ export default function Home() {
       });
       if (!response.ok) {
         setError("Login failed. Check credentials.");
+        clearTimeout(slowLoginTimer);
         setLoading(false);
         return;
       }
@@ -46,10 +54,11 @@ export default function Home() {
 
       if (!data.access_token) {
         setError("No token received.");
+        clearTimeout(slowLoginTimer);
         setLoading(false);
         return;
       }
-      login(data.access_token);
+      login(data.access_token, email);
       setOpen(false);
       setEmail("");
       setPassword("");
@@ -57,7 +66,9 @@ export default function Home() {
     } catch (err) {
       setError("Network error.");
     }
+    clearTimeout(slowLoginTimer);
     setLoading(false);
+    setShowSlowLoginMessage(false);
   };
 
   const handleDemoLogin = () => {
@@ -67,7 +78,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+    <div className="flex flex-col items-center justify-center gap-4 py-10">
       <h1 className="text-3xl font-bold mb-4">Welcome to Study Assistant</h1>
       <div className="flex gap-4">
         <Dialog open={open} onOpenChange={setOpen}>
@@ -94,6 +105,11 @@ export default function Home() {
                 required
               />
               {error && <div className="text-red-500 text-sm">{error}</div>}
+              {showSlowLoginMessage && loading && (
+                  <div className="text-red-500 text-sm mb-2">
+                    First time logging in may take up to 30 seconds.
+                  </div>
+                )}
               <DialogFooter>
                 <Button type="submit" disabled={loading}>
                   {loading ? "Logging in..." : "Log In"}

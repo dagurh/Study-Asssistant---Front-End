@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
@@ -13,8 +13,37 @@ const navLinks = [
 export default function Sidebar() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
-  const { logout } = useAuth();
+  const { logout, mode } = useAuth();
   const navigate = useNavigate();
+  const [sessionExpiryMessage, setSessionExpiryMessage] = useState<string>("Session active");
+
+  useEffect(() => {
+    const calculateAndSetExpiry = () => {
+      const logoutExpiryTimestamp = localStorage.getItem("expiresAt");
+      if (logoutExpiryTimestamp) {
+        const timeTillLogoutMs = parseInt(logoutExpiryTimestamp, 10) - Date.now();
+        if (timeTillLogoutMs > 0) {
+          setSessionExpiryMessage(`Session expires in ${Math.ceil(timeTillLogoutMs / 60000)} minutes`);
+        } else {
+          // Session has expired or is very close to expiring
+          setSessionExpiryMessage("Session expired");
+          // Optionally, you could trigger a logout here or prompt the user
+          // if (logout) logout();
+        }
+      } else {
+        // No expiry information found, or user is not logged in via token method
+        setSessionExpiryMessage(mode === "demo" ? "Demo session" : "Session active");
+      }
+    };
+
+    if (mode === "user") { // Only run interval for logged-in users with expirable sessions
+      calculateAndSetExpiry(); // Initial call
+      const intervalId = setInterval(calculateAndSetExpiry, 30000); // Update every 30 seconds
+      return () => clearInterval(intervalId); // Cleanup interval
+    } else {
+      setSessionExpiryMessage(mode === "demo" ? "Demo session" : ""); // Clear or set demo message
+    }
+  }, [mode, logout]); // Add logout to dependencies if used in effect
 
   function handleLogout() {
     logout();
@@ -43,11 +72,21 @@ export default function Sidebar() {
         <div className="flex flex-col flex-1">
           <SidebarLinks location={location} />
         </div>
+        { localStorage.getItem("email") && (
+          <div className="text-sm text-gray-600">
+            Logged in as: {localStorage.getItem("email")}
+          </div>
+        )}
         <button
           onClick={handleLogout}
-          className="mt-8 mb-6 bg-gray-200 hover:bg-gray-300 text-black-600 rounded px-4 py-2 w-full text-left">
+          className="mt-2 mb-2 bg-gray-200 hover:bg-gray-300 text-black-600 rounded px-4 py-2 w-full text-sm h-8">
           Logout
         </button>
+        {sessionExpiryMessage && (
+          <div className="text-xs text-slate-500 text-center mb-4">
+            {sessionExpiryMessage}
+          </div>
+        )}
       </aside>
       {/* This blank div gives room for fixed sidebar */}
       <div className="hidden md:block w-60"></div>
@@ -64,8 +103,8 @@ function SidebarLinks({ location, onClick }: { location: any; onClick?: () => vo
           to={link.to}
           className={`px-3 py-2 rounded transition ${
             location.pathname === link.to
-              ? "bg-blue-600 text-white"
-              : "text-gray-700 hover:bg-blue-100"
+              ? "bg-blue-400 text-white"
+              : "text-gray-700 hover:bg-blue-200"
           }`}
           onClick={onClick}
         >

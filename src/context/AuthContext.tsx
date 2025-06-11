@@ -6,7 +6,7 @@ type AuthMode = "guest" | "user" | "demo";
 interface AuthContextProps {
   mode: AuthMode;
   token: string | null;
-  login: (token: string) => void;
+  login: (token: string, email: string) => void;
   logout: () => void;
   enterDemo: () => void;
 }
@@ -17,11 +17,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => {
     const token = localStorage.getItem("token");
     const expiry = localStorage.getItem("expiresAt");
+    const email = localStorage.getItem("email");
     if (token && expiry && Date.now() < parseInt(expiry, 10)) {
       return token;
     }
     localStorage.removeItem("token");
     localStorage.removeItem("expiresAt");
+    localStorage.removeItem("email");
     return null;
   });
 
@@ -53,11 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(timer);
   }, [token]);
   
-  const login = (userToken: string) => {
+  const login = (userToken: string, userEmail: string) => {
     const expiresAt = Date.now() + 30 * 60 * 1000;
     setToken(userToken);
     localStorage.setItem("token", userToken);
     localStorage.setItem("expiresAt", expiresAt.toString());
+    localStorage.setItem("email", userEmail);
     setMode("user");
   };
   
@@ -65,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     localStorage.removeItem("token");
     localStorage.removeItem("expiresAt");
+    localStorage.removeItem("email");
     setMode("guest");
   };
 
