@@ -17,7 +17,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => {
     const token = localStorage.getItem("token");
     const expiry = localStorage.getItem("expiresAt");
-    const email = localStorage.getItem("email");
     if (token && expiry && Date.now() < parseInt(expiry, 10)) {
       return token;
     }

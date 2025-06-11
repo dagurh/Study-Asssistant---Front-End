@@ -583,6 +583,7 @@ export default function CourseDetail() {
                   onClick={() => setPracticeTestDialogOpen(false)}
                   disabled={generatingPracticeTest}
                   >Cancel</Button>
+                  {generatePracticeTestError && <div className="text-red-500 text-sm">{generatePracticeTestError}</div>}
               </DialogFooter>
             </DialogContent>
           </Dialog>
