@@ -161,10 +161,10 @@ export default function Home() {
             </form>
           </DialogContent>
         </Dialog>
-        <Button variant="outline" onClick={handleDemoLogin}>Demo</Button>
+        <Button variant="outline" disabled={loading} onClick={handleDemoLogin}>Demo</Button>
       </div>
       {error && <div className="text-red-500 text-sm">{error}</div>}
-      {showSlowLoginMessage && loading && (
+      {loading && (
           <div className="text-red-500 text-sm mb-2">
             First time logging in may take up to 30 seconds.
           </div>
