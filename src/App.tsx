@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route} from "react-router-dom";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Courses from "./pages/Courses";
+import About from "./pages/About";
 import CourseDetail from "./pages/CourseDetail";
 import NoteDetail from "./pages/NoteDetail";
 import Sidebar from "./components/Sidebar";
@@ -28,6 +29,11 @@ function App() {
               <Route path="/courses" element={
                 <ProtectedRoute>
                   <Courses />
+                </ProtectedRoute>
+              } />
+              <Route path="/about" element={
+                <ProtectedRoute>
+                  <About />
                 </ProtectedRoute>
               } />
               <Route path="/courses/:id" element={

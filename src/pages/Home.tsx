@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function Home() {
   const { mode } = useAuth();
-  const { login, enterDemo } = useAuth();
+  const { login } = useAuth();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -71,10 +71,53 @@ export default function Home() {
     setShowSlowLoginMessage(false);
   };
 
-  const handleDemoLogin = () => {
-    enterDemo();
-    setOpen(false);
-    navigate("/dashboard", { replace: true });
+  const handleDemoLogin = async () => {
+    const demoEmail = import.meta.env.VITE_DEMOUSERNAME || "";
+    const demoPassword = import.meta.env.VITE_DEMOPASSWORD || "";
+    setLoading(true);
+    setShowSlowLoginMessage(false);
+    setError(null);
+
+    const slowLoginTimer = setTimeout(() => {
+      setShowSlowLoginMessage(true);
+    }, 4000);
+
+    const formData = new URLSearchParams();
+    formData.append("username", demoEmail);
+    formData.append("password", demoPassword);
+
+    try {
+      const response = await fetch(`${API_URL}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData.toString(),
+      });
+      if (!response.ok) {
+        setError("Login failed. Check credentials.");
+        clearTimeout(slowLoginTimer);
+        setLoading(false);
+        return;
+      }
+      
+      const data = await response.json();
+
+      if (!data.access_token) {
+        setError("No token received.");
+        clearTimeout(slowLoginTimer);
+        setLoading(false);
+        return;
+      }
+      login(data.access_token, demoEmail);
+      setOpen(false);
+      setEmail("");
+      setPassword("");
+      navigate("/dashboard", { replace: true });
+    } catch (err) {
+      setError("Network error.");
+    }
+    clearTimeout(slowLoginTimer);
+    setLoading(false);
+    setShowSlowLoginMessage(false);
   };
 
   return (
@@ -120,6 +163,12 @@ export default function Home() {
         </Dialog>
         <Button variant="outline" onClick={handleDemoLogin}>Demo</Button>
       </div>
+      {error && <div className="text-red-500 text-sm">{error}</div>}
+      {showSlowLoginMessage && loading && (
+          <div className="text-red-500 text-sm mb-2">
+            First time logging in may take up to 30 seconds.
+          </div>
+        )}
     </div>
   );
 }

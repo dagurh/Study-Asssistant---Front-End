@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 const navLinks = [
   { name: "Dashboard", to: "/dashboard" },
   { name: "Courses", to: "/courses" },
+  { name: "About", to: "/about" },
 ];
 
 export default function Sidebar() {
@@ -25,25 +26,21 @@ export default function Sidebar() {
         if (timeTillLogoutMs > 0) {
           setSessionExpiryMessage(`Session expires in ${Math.ceil(timeTillLogoutMs / 60000)} minutes`);
         } else {
-          // Session has expired or is very close to expiring
           setSessionExpiryMessage("Session expired");
-          // Optionally, you could trigger a logout here or prompt the user
-          // if (logout) logout();
         }
       } else {
-        // No expiry information found, or user is not logged in via token method
         setSessionExpiryMessage(mode === "demo" ? "Demo session" : "Session active");
       }
     };
 
-    if (mode === "user") { // Only run interval for logged-in users with expirable sessions
-      calculateAndSetExpiry(); // Initial call
-      const intervalId = setInterval(calculateAndSetExpiry, 30000); // Update every 30 seconds
-      return () => clearInterval(intervalId); // Cleanup interval
+    if (mode === "user") {
+      calculateAndSetExpiry();
+      const intervalId = setInterval(calculateAndSetExpiry, 30000);
+      return () => clearInterval(intervalId);
     } else {
-      setSessionExpiryMessage(mode === "demo" ? "Demo session" : ""); // Clear or set demo message
+      setSessionExpiryMessage(mode === "demo" ? "Demo session" : "");
     }
-  }, [mode, logout]); // Add logout to dependencies if used in effect
+  }, [mode, logout]);
 
   function handleLogout() {
     logout();
